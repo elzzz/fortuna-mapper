@@ -93,7 +93,7 @@ return [
     | The default zoom level Googlmapper should use.
     |
     */
-    'zoom' => 2,
+    'zoom' => 8,
 
     /*
     |--------------------------------------------------------------------------

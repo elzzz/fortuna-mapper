@@ -26,12 +26,19 @@ class MapsController extends Controller
      */
     public function index()
     {
-        Mapper::map(55.751244, 37.618423, ['marker' => false]);
+        Mapper::map(55.751244, 37.618423, ['marker' => false, 'eventBeforeLoad' => 'displayMarkerListener(map);']);
         $markers = Marker::orderBy('created_at', 'desc')->paginate(10);
-        foreach(Marker::all() as $marker) {
-            Mapper::informationWindow($marker->lat, $marker->long, $marker->description . "<br><small>Added by ".$marker->user->name."</small>");
+        $markArr = [];
+        foreach($markers as $marker) {
+            $markArr[] = array($marker->lat, $marker->long, $marker->description);
         }
-        return view('maps.map')->with('markers', $markers);
+
+        $data = [
+            'markers' => $markers,
+            'markArr' => $markArr,
+        ];
+
+        return view('maps.map')->with($data);
     }
 
     /**
