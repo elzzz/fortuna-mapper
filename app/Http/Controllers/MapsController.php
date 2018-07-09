@@ -28,17 +28,8 @@ class MapsController extends Controller
     {
         Mapper::map(55.751244, 37.618423, ['marker' => false, 'eventBeforeLoad' => 'displayMarkerListener(map);']);
         $markers = Marker::orderBy('created_at', 'desc')->paginate(10);
-        $markArr = [];
-        foreach($markers as $marker) {
-            $markArr[] = array($marker->lat, $marker->long, $marker->description);
-        }
 
-        $data = [
-            'markers' => $markers,
-            'markArr' => $markArr,
-        ];
-
-        return view('maps.map')->with($data);
+        return view('maps.map')->with('markers', $markers);
     }
 
     /**

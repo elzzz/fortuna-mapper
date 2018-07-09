@@ -1,8 +1,8 @@
 @extends('layouts.app')
 
 @section('content')
-    <div class="jumbotron center">
-        <div style="height: 700px;">
+    <div class="center">
+        <div style="height: 800px;">
             {!! Mapper::render() !!}
         </div>
     </div>
@@ -22,71 +22,97 @@
     @endif
 
     <script>
-        // Got from PHP (formalized)
-        var markers = JSON.parse('<?php echo json_encode($markArr); ?>');
+        let markers_info = [];
+        let markers = [];
 
-        // Basic marker with location and title info
-        var google_markers = [];
-
-        // Visible markers
-        var displayed_markers = [];
+        var timeout;
 
         function displayMarkerListener(map) {
-
-            //formalized info about marker to marker obj
-            addMarkers();
-
+            // Add clusterer for displayed markers
+            var markerCluster = new MarkerClusterer(map, [], {imagePath: 'https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/m'});
             // Listener for map border changing
             map.addListener('bounds_changed', function () {
-                showVisibleMarkers(map);
-
-                // Add clusterer for displayed markers
-                var markerCluster = new MarkerClusterer(map, displayed_markers, {imagePath: 'https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/m'});
+                clearTimeout(timeout);
+                timeout = setTimeout(function() {
+                    getMarkers(map);
+                    createMarkers();
+                    showMarkers(map, markerCluster);
+                }, 500);
             });
 
         }
 
-        function showVisibleMarkers(map) {
-            for (var i = 0; i < google_markers.length; i++)
-            {
-                if (map.getBounds().contains(google_markers[i].getPosition()))
-                {
-                    // Marker
-                    var marker = google_markers[i];
+        function getMarkers(map) {
+            var latFrom = map.getBounds().toJSON()['south'];
+            var latTo = map.getBounds().toJSON()['north'];
+            var longFrom = map.getBounds().toJSON()['west'];
+            var longTo = map.getBounds().toJSON()['east'];
 
-                    // Window
-                    var infowindow = new google.maps.InfoWindow({
-                        content: marker.title
-                    });
-
-                    // Added listener to marker with InfoWindow
-                    marker.addListener('click', function() {
-                        infowindow.open(map, marker);
-                    });
-
-                    // Visible element added to map
-                    google_markers[i].setMap(map);
-
-                    // Pushed to displayed markers (for Clusterizing)
-                    displayed_markers.push(google_markers[i]);
-
-                    // Deleted from all markers (in case to not redraw inf times)
-                    google_markers.splice(i, 1);
+            $.ajax({
+                type: 'GET',
+                url: `http://localhost:8080/api/markers?latFrom=${latFrom}&latTo=${latTo}&longFrom=${longFrom}&longTo=${longTo}`,
+                dataType: 'json',
+                async: false,
+                success: function (data) {
+                    markers_info = [];
+                    for (var i = 0; i < data.length; i++) {
+                        markers_info.pushIfNotExist(data[i], function (e) {
+                           return e.description === data[i]['description']  && e.lat === data[i]['lat'] && e.long === data[i]['long'];
+                        });
+                    }
                 }
-            }
+            });
         }
 
-        function addMarkers() {
-            for (var i = 0; i < markers.length; i++) {
-                var mark = markers[i],
-                    LatLng = new google.maps.LatLng(mark[0], mark[1]),
+        function createMarkers() {
+            markers = [];
+            for (var i = 0; i < markers_info.length; i++) {
+                var mark = markers_info[i],
+                    LatLng = new google.maps.LatLng(mark['lat'], mark['long']),
                     marker = new google.maps.Marker({
                         position: LatLng,
-                        title: mark[2]
+                        title: mark['description'],
                     });
-                google_markers.push(marker);
+
+
+                markers.push(marker);
             }
         }
+
+        function showMarkers(map, markerCluster) {
+            var infowindow = new google.maps.InfoWindow();
+            markerCluster.clearMarkers();
+            for (var i = 0; i < markers.length; i++) {
+                var marker = markers[i];
+
+                google.maps.event.addListener(marker, 'click', (function(marker) {
+                    return function() {
+                        infowindow.setContent(marker.title);
+                        infowindow.open(map, marker);
+                    }
+                })(marker));
+
+                marker.setMap(map);
+                markerCluster.addMarker(markers[i]);
+            }
+        }
+
+
+        // Comparer for marker arrays
+
+        Array.prototype.inArray = function(comparer) {
+            for(var i=0; i < this.length; i++) {
+                if(comparer(this[i])) return true;
+            }
+            return false;
+        };
+
+        Array.prototype.pushIfNotExist = function(element, comparer) {
+            if (!this.inArray(comparer)) {
+                this.push(element);
+            }
+        };
+
     </script>
 
 @endsection
